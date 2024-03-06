@@ -6,9 +6,13 @@ module PrometheusExporter::Server
       @metrics = {}
       @http_requests_total = nil
       @http_request_duration_seconds = nil
+      @http_request_duration_seconds_histogram = nil
       @http_request_redis_duration_seconds = nil
+      @http_request_redis_duration_seconds_histogram = nil
       @http_request_sql_duration_seconds = nil
+      @http_request_sql_duration_seconds_histogram = nil
       @http_request_queue_duration_seconds = nil
+      @http_request_queue_duration_seconds_histogram = nil
     end
 
     def type
@@ -33,23 +37,43 @@ module PrometheusExporter::Server
           "Total HTTP requests from web app."
         )
 
-        @metrics["http_request_duration_seconds"] = @http_request_duration_seconds = PrometheusExporter::Metric::Base.default_aggregation.new(
+        @metrics["http_request_duration_seconds"] = @http_request_duration_seconds = PrometheusExporter::Metric::Summary.new(
           "http_request_duration_seconds",
           "Time spent in HTTP reqs in seconds."
         )
 
-        @metrics["http_request_redis_duration_seconds"] = @http_request_redis_duration_seconds = PrometheusExporter::Metric::Base.default_aggregation.new(
+        @metrics["http_request_duration_seconds_histogram"] = @http_request_duration_seconds_histogram = PrometheusExporter::Metric::Histogram.new(
+          "http_request_duration_seconds_histogram",
+          "Time spent in HTTP reqs in seconds."
+        )
+
+        @metrics["http_request_redis_duration_seconds"] = @http_request_redis_duration_seconds = PrometheusExporter::Metric::Summary.new(
           "http_request_redis_duration_seconds",
           "Time spent in HTTP reqs in Redis, in seconds."
         )
 
-        @metrics["http_request_sql_duration_seconds"] = @http_request_sql_duration_seconds = PrometheusExporter::Metric::Base.default_aggregation.new(
+        @metrics["http_request_redis_duration_seconds_histogram"] = @http_request_redis_duration_seconds_histogram = PrometheusExporter::Metric::Histogram.new(
+          "http_request_redis_duration_seconds_histogram",
+          "Time spent in HTTP reqs in Redis, in seconds."
+        )
+
+        @metrics["http_request_sql_duration_seconds"] = @http_request_sql_duration_seconds = PrometheusExporter::Metric::Summary.new(
           "http_request_sql_duration_seconds",
           "Time spent in HTTP reqs in SQL in seconds."
         )
 
-        @metrics["http_request_queue_duration_seconds"] = @http_request_queue_duration_seconds = PrometheusExporter::Metric::Base.default_aggregation.new(
+        @metrics["http_request_sql_duration_seconds_histogram"] = @http_request_sql_duration_seconds_histogram = PrometheusExporter::Metric::Histogram.new(
+          "http_request_sql_duration_seconds_histogram",
+          "Time spent in HTTP reqs in SQL in seconds."
+        )
+
+        @metrics["http_request_queue_duration_seconds"] = @http_request_queue_duration_seconds = PrometheusExporter::Metric::Summary.new(
           "http_request_queue_duration_seconds",
+          "Time spent queueing the request in load balancer in seconds."
+        )
+
+        @metrics["http_request_queue_duration_seconds_histogram"] = @http_request_queue_duration_seconds_histogram = PrometheusExporter::Metric::Histogram.new(
+          "http_request_queue_duration_seconds_histogram",
           "Time spent queueing the request in load balancer in seconds."
         )
       end
@@ -64,15 +88,19 @@ module PrometheusExporter::Server
 
       if timings = obj["timings"]
         @http_request_duration_seconds.observe(timings["total_duration"], labels)
+        @http_request_duration_seconds_histogram.observe(timings["total_duration"], labels)
         if redis = timings["redis"]
           @http_request_redis_duration_seconds.observe(redis["duration"], labels)
+          @http_request_redis_duration_seconds_histogram.observe(redis["duration"], labels)
         end
         if sql = timings["sql"]
           @http_request_sql_duration_seconds.observe(sql["duration"], labels)
+          @http_request_sql_duration_seconds_histogram.observe(sql["duration"], labels)
         end
       end
       if queue_time = obj["queue_time"]
         @http_request_queue_duration_seconds.observe(queue_time, labels)
+        @http_request_queue_duration_seconds_histogram.observe(queue_time, labels)
       end
     end
   end
