@@ -14,6 +14,7 @@ def run
   }
   custom_collector_filename = nil
   custom_type_collectors_filenames = []
+  custom_histogram_buckets = []
 
   OptionParser.new do |opt|
     opt.banner = "Usage: prometheus_exporter [options]"
@@ -53,6 +54,9 @@ def run
     opt.on('-g', '--histogram', "Use histogram instead of summary for aggregations") do |o|
       options[:histogram] = true
     end
+    opt.on('--histogram-buckets BUCKETS', String, "(optional) Specify custom histogram buckets (default: #{PrometheusExporter::Metric::Histogram::DEFAULT_BUCKETS})") do |o|
+      options[:histogram_buckets] = o
+    end
     opt.on('--auth FILE', String, "(optional) enable basic authentication using a htpasswd FILE") do |o|
       options[:auth] = o
     end
@@ -85,6 +89,19 @@ def run
       logger.fatal "The AUTH file either doesn't exist or we don't have access to it"
       exit 1
     end
+  end
+
+  if ENV['PROMETHEUS_EXPORTER_HISTOGRAM_BUCKETS'] != nil
+    custom_histogram_buckets = ENV['PROMETHEUS_EXPORTER_HISTOGRAM_BUCKETS'].split(',').map(&:to_f)
+  end
+
+  if options.has_key?(:histogram_buckets)
+    custom_histogram_buckets = options[:histogram_buckets].split(',').map(&:to_f)
+  end
+
+  if custom_histogram_buckets.length > 0
+    logger.info "Setting histogram buckets to [#{custom_histogram_buckets}]"
+    PrometheusExporter::Metric::Histogram.default_buckets = custom_histogram_buckets.freeze
   end
 
   if custom_collector_filename
